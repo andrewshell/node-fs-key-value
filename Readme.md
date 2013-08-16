@@ -2,6 +2,8 @@
 
 This module provides a simple key value data store using only the file system. It makes use of file locking to allow safe operation in a multiple process environment without the overhead of a separate database server.
 
+[![NPM](https://nodei.co/npm/fs-key-value.png)](https://nodei.co/npm/fs-key-value/)
+
 ## Installation
 
 ```bash
