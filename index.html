@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <link href='https://fonts.googleapis.com/css?family=Chivo:900' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <title>node-fs-key-value by andrewshell</title>
+  </head>
+
+  <body>
+    <div id="container">
+      <div class="inner">
+
+        <header>
+          <h1>node-fs-key-value</h1>
+          <h2>Key value data store using the filesystem</h2>
+        </header>
+
+        <section id="downloads" class="clearfix">
+          <a href="https://github.com/andrewshell/node-fs-key-value/zipball/master" id="download-zip" class="button"><span>Download .zip</span></a>
+          <a href="https://github.com/andrewshell/node-fs-key-value/tarball/master" id="download-tar-gz" class="button"><span>Download .tar.gz</span></a>
+          <a href="https://github.com/andrewshell/node-fs-key-value" id="view-on-github" class="button"><span>View on GitHub</span></a>
+        </section>
+
+        <hr>
+
+        <section id="main_content">
+          <h1>
+<a name="fs-key-value" class="anchor" href="#fs-key-value"><span class="octicon octicon-link"></span></a>fs-key-value</h1>
+
+<p>This module provides a simple key value data store using only the file system. It makes use of file locking to allow safe operation in a multiple process environment without the overhead of a separate database server.</p>
+
+<h2>
+<a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h2>
+
+<div class="highlight"><pre><span class="nv">$ </span>npm install fs-key-value
+</pre></div>
+
+<h2>
+<a name="example" class="anchor" href="#example"><span class="octicon octicon-link"></span></a>Example</h2>
+
+<div class="highlight"><pre><span class="kd">var</span> <span class="nx">FsKeyValue</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'fs-key-value'</span><span class="p">)</span>
+
+<span class="kd">var</span> <span class="nx">db</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">FsKeyValue</span><span class="p">(</span><span class="s1">'./mydb'</span><span class="p">)</span>
+
+<span class="kd">var</span> <span class="nx">cluster</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'cluster'</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="p">(</span><span class="nx">cluster</span><span class="p">.</span><span class="nx">isMaster</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kd">var</span> <span class="nx">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="o">&lt;</span> <span class="mi">8</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">cluster</span><span class="p">.</span><span class="nx">fork</span><span class="p">()</span>
+  <span class="p">}</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">id</span> <span class="o">=</span> <span class="nx">cluster</span><span class="p">.</span><span class="nx">worker</span><span class="p">.</span><span class="nx">id</span> <span class="o">%</span> <span class="mi">2</span>
+
+  <span class="nx">db</span><span class="p">.</span><span class="nx">put</span><span class="p">(</span><span class="s1">'hoopla'</span> <span class="o">+</span> <span class="nx">id</span><span class="p">,</span> <span class="p">{</span><span class="s1">'msg'</span><span class="o">:</span> <span class="s1">'ballyhoo '</span> <span class="o">+</span> <span class="nx">cluster</span><span class="p">.</span><span class="nx">worker</span><span class="p">.</span><span class="nx">id</span><span class="p">})</span>
+
+  <span class="kd">var</span> <span class="nx">data</span> <span class="o">=</span> <span class="nx">db</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s1">'hoopla'</span> <span class="o">+</span> <span class="nx">id</span><span class="p">)</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">data</span> <span class="o">!=</span> <span class="kc">undefined</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">data</span><span class="p">.</span><span class="nx">msg</span><span class="p">)</span>
+  <span class="p">}</span>
+
+  <span class="nx">db</span><span class="p">.</span><span class="nx">del</span><span class="p">(</span><span class="s1">'hoopla'</span> <span class="o">+</span> <span class="nx">id</span><span class="p">)</span>
+
+  <span class="nx">cluster</span><span class="p">.</span><span class="nx">worker</span><span class="p">.</span><span class="nx">kill</span><span class="p">()</span>
+<span class="p">}</span>
+</pre></div>
+        </section>
+
+        <footer>
+          node-fs-key-value is maintained by <a href="https://github.com/andrewshell">andrewshell</a><br>
+          This page was generated by <a href="http://pages.github.com">GitHub Pages</a>. Tactile theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.
+        </footer>
+
+                  <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+          </script>
+          <script type="text/javascript">
+            try {
+              var pageTracker = _gat._getTracker("UA-43245707-1");
+            pageTracker._trackPageview();
+            } catch(err) {}
+          </script>
+
+      </div>
+    </div>
+  </body>
+</html>
