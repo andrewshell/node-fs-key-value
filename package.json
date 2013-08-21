@@ -2,14 +2,15 @@
   "name": "fs-key-value",
   "description": "Key value data store using the filesystem",
   "keywords": ["key", "value", "fs", "fs-ext", "flock", "db"],
-  "version": "0.1.2",
+  "version": "1.0.0",
   "homepage": "http://andrewshell.github.com/node-fs-key-value",
   "repository": "git://github.com/andrewshell/node-fs-key-value.git",
   "author": "Andrew Shell <andrew@andrewshell.org> (http://blog.andrewshell.org/)",
   "main": "./fs-key-value.js",
   "dependencies": {
     "fs-ext": ">= 0.3.x",
-    "path": ">= 0.4.x"
+    "path": ">= 0.4.x",
+    "step": "*"
   },
   "engines": {
     "node": ">= v0.8.0"

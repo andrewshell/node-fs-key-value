@@ -1,46 +1,226 @@
-var fs = require('fs-ext')
-var path = require('path')
+var fs = require('fs-ext'),
+    path = require('path'),
+    util = require('util'),
+    Step = require('step')
 
-function FsKeyValue (directory) {
-  this.directory = directory
-  if (!fs.existsSync(this.directory)) {
-    fs.mkdirSync(this.directory)
-  }
-  var filename = path.join(this.directory, '.lock')
-  this.lock = fs.openSync(filename, 'a')
+function FsKeyValue (directory, callback) {
+  this.open(directory, callback)
 }
 
-FsKeyValue.prototype.get = function (key) {
-  fs.flockSync(this.lock, 'sh')
-  var filename = path.join(this.directory, key)
-  if (!fs.existsSync(filename)) {
-    return
+FsKeyValue.prototype.open = function (directory, callback) {
+  var self = this
+
+  if (typeof callback != 'function') {
+    var callback = function (err) { 
+      if (err) {
+        throw err
+      }
+    }
   }
-  var fd = fs.openSync(filename, 'a+')
-  fs.flockSync(fd, 'sh')
-  var data = fs.readFileSync(filename, {'encoding': 'utf8'})
-  fs.flockSync(fd, 'un')
-  fs.flockSync(this.lock, 'un')
-  return JSON.parse(data)
+
+  Step(
+    function initialize () {
+      fs.exists(directory, this)
+    },
+    function makeDirectoryIfNotExists (exists) {
+      if (exists) {
+        return this()
+      } else {
+        fs.mkdir(directory, 0777, this)
+      }
+    },
+    function openDirectoryLockFile (err) {
+      if (err) {
+        return callback(err)
+      }
+      var filename = path.join(directory, '.lock')
+      fs.open(filename, 'a', 0666, this)
+    },
+    function assignDirectoryLockFile (err, fd) {
+      if (err) {
+        return callback(err)
+      }
+      self.lock = fd
+      this()
+    },
+    function finishInitialization() {
+      self.directory = directory
+      callback(null, self)
+    }
+  )
 }
 
-FsKeyValue.prototype.put = function (key, value) {
-  fs.flockSync(this.lock, 'sh')
-  var filename = path.join(this.directory, key)
-  var fd = fs.openSync(filename, 'a')
-  fs.flockSync(fd, 'ex')
-  fs.writeFileSync(filename, JSON.stringify(value), {'encoding': 'utf8'})
-  fs.flockSync(fd, 'un')
-  fs.flockSync(this.lock, 'un')
-};
+FsKeyValue.prototype.get = function (key, callback) {
+  var self = this
 
-FsKeyValue.prototype.del = function (key) {
-  fs.flockSync(this.lock, 'ex')
-  var filename = path.join(this.directory, key)
-  if (fs.existsSync(filename)) {
-    fs.unlinkSync(filename)
+  if (typeof callback != 'function') {
+    var callback = function (err) { 
+      if (err) {
+        throw err
+      }
+    }
   }
-  fs.flockSync(this.lock, 'un')
-};
+
+  var filename
+  var keyfile
+  var value
+
+  Step(
+    function getDirectorySharedLock () {
+      fs.flock(self.lock, 'sh', this)
+    },
+    function doesKeyFileExist (err) {
+      if (err) {
+        return callback(err)
+      }
+      filename = path.join(self.directory, key)
+      fs.exists(filename, this)
+    },
+    function openKeyFile (exists) {
+      if (exists) {
+        fs.open(filename, 'a+', 0666, this)
+      } else {
+        callback()
+      }
+    },
+    function getKeyFileSharedLock (err, fd) {
+      if (err) {
+        return callback(err)
+      }
+      keyfile = fd
+      fs.flock(keyfile, 'sh', this)
+    },
+    function readKeyFile (err) {
+      if (err) {
+        return callback(err)
+      }
+      fs.readFile(filename, {'encoding': 'utf8'}, this)
+    },
+    function recordKeyValue (err, data) {
+      if (err) {
+        return callback(err)
+      }
+      value = data
+      this()
+    },
+    function releaseKeyFileSharedLock () {
+      fs.flock(keyfile, 'un', this)
+    },
+    function releaseDirectorySharedLock (err) {
+      if (err) {
+        return callback(err)
+      }
+      fs.flock(self.lock, 'un', this)
+    },
+    function finishGettingKey (err) {
+      if (err) {
+        return callback(err)
+      }
+      callback(err, JSON.parse(value))
+    }
+  )
+}
+
+FsKeyValue.prototype.put = function (key, value, callback) {
+  var self = this
+
+  if (typeof callback != 'function') {
+    var callback = function (err) { 
+      if (err) {
+        throw err
+      }
+    }
+  }
+
+  var filename;
+  var keyfile;
+  var value;
+
+  Step(
+    function getDirectorySharedLock () {
+      fs.flock(self.lock, 'sh', this)
+    },
+    function openKeyFile (err) {
+      if (err) {
+        return callback(err)
+      }
+      filename = path.join(self.directory, key)
+      fs.open(filename, 'a', 0666, this)
+    },
+    function getKeyFileExclusiveLock (err, fd) {
+      if (err) {
+        return callback(err)
+      }
+      keyfile = fd
+      fs.flock(keyfile, 'ex', this)
+    },
+    function writeKeyFile (err) {
+      if (err) {
+        return callback(err)
+      }
+      fs.writeFile(filename, JSON.stringify(value), {'encoding': 'utf8'}, this)
+    },
+    function releaseKeyFileSharedLock (err) {
+      if (err) {
+        return callback(err)
+      }
+      fs.flock(keyfile, 'un', this)
+    },
+    function releaseDirectorySharedLock (err) {
+      if (err) {
+        return callback(err)
+      }
+      fs.flock(self.lock, 'un', this)
+    },
+    function finishPuttingKey (err) {
+      return callback(err)
+    }
+  )
+}
+
+FsKeyValue.prototype.delete = function (key, callback) {
+  var self = this
+
+  if (typeof callback != 'function') {
+    var callback = function (err) { 
+      if (err) {
+        throw err
+      }
+    }
+  }
+
+  var filename;
+  var keyfile;
+  var value;
+
+  Step(
+    function getDirectoryExclusiveLock () {
+      fs.flock(self.lock, 'ex', this)
+    },
+    function doesKeyFileExist (err) {
+      if (err) {
+        return callback(err)
+      }
+      filename = path.join(self.directory, key)
+      fs.exists(filename, this)
+    },
+    function deleteKeyFile (exists) {
+      if (exists) {
+        fs.unlink(filename, this)
+      } else {
+        return callback()
+      }
+    },
+    function releaseDirectorySharedLock (err) {
+      if (err) {
+        return callback(err)
+      }
+      fs.flock(self.lock, 'un', this)
+    },
+    function finishDeletingKey (err) {
+      return callback(err)
+    }
+  )
+}
 
 module.exports = FsKeyValue

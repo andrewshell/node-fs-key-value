@@ -13,11 +13,8 @@ $ npm install fs-key-value
 ## Example
 
 ```js
-var FsKeyValue = new require('fs-key-value')
-
-var db = new FsKeyValue('./mydb')
-
-var cluster = require('cluster')
+var cluster = require('cluster'), 
+    FsKeyValue = require('fs-key-value')
 
 if (cluster.isMaster) {
   for (var i = 0; i < 8; i++) {
@@ -26,15 +23,30 @@ if (cluster.isMaster) {
 } else {
   var id = cluster.worker.id % 2
 
-  db.put('hoopla' + id, {'msg': 'ballyhoo ' + cluster.worker.id})
+  var mydb = new FsKeyValue('./mydb', function (err, db) {
+    if (err) {
+      return console.log(err)
+    }
 
-  var data = db.get('hoopla' + id)
-  if (data != undefined) {
-    console.log(data.msg)
-  }
+    db.put('hoopla' + id, {'msg': 'ballyhoo ' + cluster.worker.id}, function (err) {
+      if (err) {
+        return console.log(cluster.worker.id + ' err ' + err)
+      }
 
-  db.del('hoopla' + id)
+      db.get('hoopla' + id, function (err, data) {
+        if (err) {
+          return console.log(cluster.worker.id + ' err ' + err)
+        }
 
-  cluster.worker.kill()
+        if (data != undefined) {
+          console.log(data.msg)
+        }
+
+        db.delete('hoopla' + id)
+
+        cluster.worker.kill()
+      })
+    })
+  })
 }
 ```
