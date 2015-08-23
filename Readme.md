@@ -13,7 +13,7 @@ $ npm install fs-key-value
 ## Example
 
 ```js
-var cluster = require('cluster'), 
+var cluster = require('cluster'),
     FsKeyValue = require('fs-key-value')
 
 if (cluster.isMaster) {

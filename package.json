@@ -2,7 +2,7 @@
   "name": "fs-key-value",
   "description": "Key value data store using the filesystem",
   "keywords": ["key", "value", "fs", "fs-ext", "flock", "db"],
-  "version": "1.0.0",
+  "version": "1.1.0",
   "homepage": "http://andrewshell.github.com/node-fs-key-value",
   "repository": "git://github.com/andrewshell/node-fs-key-value.git",
   "author": "Andrew Shell <andrew@andrewshell.org> (http://blog.andrewshell.org/)",
