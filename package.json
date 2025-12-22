@@ -1,22 +1,37 @@
 {
   "name": "fs-key-value",
+  "version": "1.2.0",
   "description": "Key value data store using the filesystem",
-  "keywords": ["key", "value", "fs", "fs-ext", "flock", "db"],
-  "version": "1.1.0",
-  "homepage": "http://andrewshell.github.com/node-fs-key-value",
-  "repository": "git://github.com/andrewshell/node-fs-key-value.git",
-  "author": "Andrew Shell <andrew@andrewshell.org> (http://blog.andrewshell.org/)",
-  "main": "./fs-key-value.js",
-  "dependencies": {
-    "fs-ext": ">= 0.3.x",
-    "path": ">= 0.4.x",
-    "step": "*"
-  },
-  "engines": {
-    "node": ">= v0.8.0"
+  "homepage": "https://github.com/andrewshell/node-fs-key-value",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andrewshell/node-fs-key-value.git"
   },
   "bugs": {
-    "mail" : "andrew@andrewshell.org",
-    "web" : "https://github.com/andrewshell/node-fs-key-value/issues"
+    "url": "https://github.com/andrewshell/node-fs-key-value/issues"
+  },
+  "author": "Andrew Shell <andrew@andrewshell.org> (https://blog.andrewshell.org/)",
+  "license": "MIT",
+  "main": "./fs-key-value.js",
+  "files": [
+    "fs-key-value.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "node --test 'test/**/*.test.js'",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "fs-ext": "^2.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2"
   }
 }
