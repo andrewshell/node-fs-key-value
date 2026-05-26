@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
-const FsKeyValue = require('../fs-key-value.js');
+const FsKeyValue = require('./fs-key-value.js');
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
 
