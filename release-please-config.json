@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "node",
+      "package-name": "fs-key-value",
+      "include-v-in-tag": true,
+      "include-component-in-tag": false,
+      "changelog-path": "CHANGELOG.md"
+    }
+  }
+}
