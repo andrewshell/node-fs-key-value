@@ -14,6 +14,8 @@ Lock pattern across the directory `.lock` file and per-key files:
 
 Concurrent reads and writes to different keys proceed in parallel; deletes serialize against everything else in the directory.
 
+The lock pattern is realized through `withDirectoryLock` and `withKeyLock` (private to the module). Both wrap a single `withFlock` primitive that owns the open/flock/release/close lifecycle — including the swallow-close-failures invariant.
+
 ## Behavioral contracts to preserve
 
 - `get` of a missing key fires `callback()` with **no arguments** (not `callback(null, undefined)`). The test `get returns undefined for non-existent key` asserts `err === undefined` — keep this if you refactor the callback shim.

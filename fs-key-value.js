@@ -9,6 +9,39 @@ const { promisify } = require('util');
 const flock = promisify(fsExt.flock);
 
 /**
+ * Run `body` while holding an flock on `filepath`. The fd is opened only to
+ * carry the flock; the body reads/writes through other fs calls. Release and
+ * close failures inside the finally are intentionally swallowed so the caller
+ * still sees the real underlying error.
+ */
+async function withFlock(filepath, openFlags, mode, body) {
+  let fd = null;
+  try {
+    fd = fs.openSync(filepath, openFlags, 0o666);
+    await flock(fd, mode);
+    return await body();
+  } finally {
+    if (fd !== null) {
+      try {
+        await flock(fd, 'un');
+      } catch {
+        /* ignore */
+      }
+      try {
+        fs.closeSync(fd);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+}
+
+const withDirectoryLock = (dirLockPath, mode, body) =>
+  withFlock(dirLockPath, 'a', mode, body);
+const withKeyLock = (filename, mode, body) =>
+  withFlock(filename, 'a+', mode, body);
+
+/**
  * @callback ErrorCallback
  * @param {Error|null} err - Error if one occurred
  */
@@ -141,54 +174,16 @@ FsKeyValue.prototype.get = function (key, callback) {
  */
 FsKeyValue.prototype.getAsync = async function (key) {
   const filename = path.join(this.directory, key);
-  let dirlock = null;
-  let keyfile = null;
 
-  try {
-    // Open and lock directory
-    dirlock = fs.openSync(this.directoryLock, 'a', 0o666);
-    await flock(dirlock, 'sh');
-
-    // Check if key exists
-    const exists = fs.existsSync(filename);
-    if (!exists) {
+  return withDirectoryLock(this.directoryLock, 'sh', async () => {
+    if (!fs.existsSync(filename)) {
       return undefined;
     }
-
-    // Open and lock key file
-    keyfile = fs.openSync(filename, 'a+', 0o666);
-    await flock(keyfile, 'sh');
-
-    // Read value
-    const data = await fsp.readFile(filename, { encoding: 'utf8' });
-    return JSON.parse(data);
-  } finally {
-    // Release locks and close files
-    if (keyfile !== null) {
-      try {
-        await flock(keyfile, 'un');
-      } catch {
-        /* ignore */
-      }
-      try {
-        fs.closeSync(keyfile);
-      } catch {
-        /* ignore */
-      }
-    }
-    if (dirlock !== null) {
-      try {
-        await flock(dirlock, 'un');
-      } catch {
-        /* ignore */
-      }
-      try {
-        fs.closeSync(dirlock);
-      } catch {
-        /* ignore */
-      }
-    }
-  }
+    return withKeyLock(filename, 'sh', async () => {
+      const data = await fsp.readFile(filename, { encoding: 'utf8' });
+      return JSON.parse(data);
+    });
+  });
 };
 
 /**
@@ -227,47 +222,12 @@ FsKeyValue.prototype.put = function (key, value, callback) {
  */
 FsKeyValue.prototype.putAsync = async function (key, value) {
   const filename = path.join(this.directory, key);
-  let dirlock = null;
-  let keyfile = null;
 
-  try {
-    // Open and lock directory (shared lock for puts)
-    dirlock = fs.openSync(this.directoryLock, 'a', 0o666);
-    await flock(dirlock, 'sh');
-
-    // Open and lock key file (exclusive lock for write)
-    keyfile = fs.openSync(filename, 'a', 0o666);
-    await flock(keyfile, 'ex');
-
-    // Write value
-    await fsp.writeFile(filename, JSON.stringify(value), { encoding: 'utf8' });
-  } finally {
-    // Release locks and close files
-    if (keyfile !== null) {
-      try {
-        await flock(keyfile, 'un');
-      } catch {
-        /* ignore */
-      }
-      try {
-        fs.closeSync(keyfile);
-      } catch {
-        /* ignore */
-      }
-    }
-    if (dirlock !== null) {
-      try {
-        await flock(dirlock, 'un');
-      } catch {
-        /* ignore */
-      }
-      try {
-        fs.closeSync(dirlock);
-      } catch {
-        /* ignore */
-      }
-    }
-  }
+  return withDirectoryLock(this.directoryLock, 'sh', () =>
+    withKeyLock(filename, 'ex', () =>
+      fsp.writeFile(filename, JSON.stringify(value), { encoding: 'utf8' })
+    )
+  );
 };
 
 /**
@@ -304,33 +264,12 @@ FsKeyValue.prototype.delete = function (key, callback) {
  */
 FsKeyValue.prototype.deleteAsync = async function (key) {
   const filename = path.join(this.directory, key);
-  let dirlock = null;
 
-  try {
-    // Open and lock directory (exclusive lock for delete)
-    dirlock = fs.openSync(this.directoryLock, 'a', 0o666);
-    await flock(dirlock, 'ex');
-
-    // Delete if exists
-    const exists = fs.existsSync(filename);
-    if (exists) {
+  return withDirectoryLock(this.directoryLock, 'ex', async () => {
+    if (fs.existsSync(filename)) {
       await fsp.unlink(filename);
     }
-  } finally {
-    // Release lock and close file
-    if (dirlock !== null) {
-      try {
-        await flock(dirlock, 'un');
-      } catch {
-        /* ignore */
-      }
-      try {
-        fs.closeSync(dirlock);
-      } catch {
-        /* ignore */
-      }
-    }
-  }
+  });
 };
 
 module.exports = FsKeyValue;
