@@ -42,6 +42,27 @@ const withKeyLock = (filename, mode, body) =>
   withFlock(filename, 'a+', mode, body);
 
 /**
+ * Adapt a promise to a node-style callback. If `callback` is not a function,
+ * a default that throws on error is used. `adaptArgs(value)` returns the
+ * argument list passed on success — defaults to `[null]` for void-resolve
+ * methods. Override for methods that pass a value (or, like `get`, deliberately
+ * call back with no args so `err === undefined`).
+ */
+function toCallback(promise, callback, adaptArgs = () => [null]) {
+  if (typeof callback !== 'function') {
+    callback = function (err) {
+      if (err) {
+        throw err;
+      }
+    };
+  }
+  promise.then(
+    (value) => callback(...adaptArgs(value)),
+    (err) => callback(err)
+  );
+}
+
+/**
  * @callback ErrorCallback
  * @param {Error|null} err - Error if one occurred
  */
@@ -105,17 +126,7 @@ FsKeyValue.prototype.directoryLock = undefined;
  * @param {OpenCallback} [callback] - Called when initialization completes
  */
 FsKeyValue.prototype.open = function (directory, callback) {
-  if (typeof callback !== 'function') {
-    callback = function (err) {
-      if (err) {
-        throw err;
-      }
-    };
-  }
-
-  this.openAsync(directory)
-    .then(() => callback(null, this))
-    .catch((err) => callback(err));
+  toCallback(this.openAsync(directory), callback, () => [null, this]);
 };
 
 /**
@@ -144,24 +155,10 @@ FsKeyValue.prototype.openAsync = async function (directory) {
  * @param {GetCallback} [callback] - Called with the value or undefined if not found
  */
 FsKeyValue.prototype.get = function (key, callback) {
-  if (typeof callback !== 'function') {
-    callback = function (err) {
-      if (err) {
-        throw err;
-      }
-    };
-  }
-
-  this.getAsync(key)
-    .then((value) => {
-      if (value === undefined) {
-        // Preserve original behavior: callback() with no args for missing keys
-        callback();
-      } else {
-        callback(null, value);
-      }
-    })
-    .catch((err) => callback(err));
+  // Missing keys fire callback() with no args, so err === undefined (not null).
+  toCallback(this.getAsync(key), callback, (value) =>
+    value === undefined ? [] : [null, value]
+  );
 };
 
 /**
@@ -197,17 +194,7 @@ FsKeyValue.prototype.getAsync = async function (key) {
  * @param {ErrorCallback} [callback] - Called when write completes
  */
 FsKeyValue.prototype.put = function (key, value, callback) {
-  if (typeof callback !== 'function') {
-    callback = function (err) {
-      if (err) {
-        throw err;
-      }
-    };
-  }
-
-  this.putAsync(key, value)
-    .then(() => callback(null))
-    .catch((err) => callback(err));
+  toCallback(this.putAsync(key, value), callback);
 };
 
 /**
@@ -240,17 +227,7 @@ FsKeyValue.prototype.putAsync = async function (key, value) {
  * @param {ErrorCallback} [callback] - Called when deletion completes
  */
 FsKeyValue.prototype.delete = function (key, callback) {
-  if (typeof callback !== 'function') {
-    callback = function (err) {
-      if (err) {
-        throw err;
-      }
-    };
-  }
-
-  this.deleteAsync(key)
-    .then(() => callback(null))
-    .catch((err) => callback(err));
+  toCallback(this.deleteAsync(key), callback);
 };
 
 /**
