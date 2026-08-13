@@ -1,6 +1,6 @@
 {
   "name": "fs-key-value",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Key value data store using the filesystem",
   "homepage": "https://github.com/andrewshell/node-fs-key-value",
   "repository": {
